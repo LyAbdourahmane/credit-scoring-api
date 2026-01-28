@@ -1,0 +1,19 @@
+{
+    "author": "Abdourahamane",
+    "trained_on": "22-01-2026",
+    "dataset_version": "application_train",
+    "input_columns": [
+        "AMT_REQ_CREDIT_BUREAU_YEAR",
+        "HOUR_APPR_PROCESS_START",
+        "AMT_ANNUITY",
+        "AMT_CREDIT",
+        "EXT_SOURCE_3",
+        "EXT_SOURCE_2",
+        "CODE_GENDER",
+        "FLAG_PHONE",
+        "AMT_GOODS_PRICE",
+        "FLAG_OWN_CAR",
+        "NAME_FAMILY_STATUS",
+        "CREDIT_TERM"
+    ]
+}
