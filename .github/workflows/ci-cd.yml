@@ -28,6 +28,9 @@ jobs:
       - name: Run tests with coverage
         run: uv run pytest --cov=. --cov-report=xml
 
+      - name: Install xmllint
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+
       - name: Extract coverage percentage
         id: coverage
         run: |
