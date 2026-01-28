@@ -31,9 +31,9 @@ jobs:
       - name: Extract coverage percentage
         id: coverage
         run: |
-          coverage=$(grep 'line-rate="' coverage.xml | sed -E 's/.*line-rate="([0-9.]+)".*/\1/')
+          coverage=$(xmllint --xpath 'string(/coverage/@line-rate)' coverage.xml)
           percent=$(echo "$coverage * 100" | bc)
-          echo "coverage=$percent" >> $GITHUB_OUTPUT
+          echo "coverage=$percent" >> $GITHUB_OUTPUT 
 
       - name: Fail if coverage < 60%
         run: |
