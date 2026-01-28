@@ -31,7 +31,7 @@ jobs:
       - name: Extract coverage percentage
         id: coverage
         run: |
-          coverage=$(grep -oP 'line-rate="\K[0-9.]+' coverage.xml)
+          coverage=$(grep 'line-rate="' coverage.xml | sed -E 's/.*line-rate="([0-9.]+)".*/\1/')
           percent=$(echo "$coverage * 100" | bc)
           echo "coverage=$percent" >> $GITHUB_OUTPUT
 
