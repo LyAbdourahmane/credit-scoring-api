@@ -1,13 +1,14 @@
 # ---------- Schéma d'entrée ----------
 from pydantic import BaseModel, Field, field_validator
+from typing import Optional
 
 class CreditInput(BaseModel):
-    AMT_REQ_CREDIT_BUREAU_YEAR: float = Field(..., ge=0)
+    AMT_REQ_CREDIT_BUREAU_YEAR: Optional[float] = Field(None, ge=0)
     HOUR_APPR_PROCESS_START: int = Field(..., ge=0, le=23)
     AMT_ANNUITY: float = Field(..., gt=0)
     AMT_CREDIT: float = Field(..., gt=0)
-    EXT_SOURCE_3: float = Field(None, ge=0, le=1)
-    EXT_SOURCE_2: float = Field(None, ge=0, le=1)
+    EXT_SOURCE_3: Optional[float] = Field(None, ge=0, le=1)
+    EXT_SOURCE_2: Optional[float] = Field(None, ge=0, le=1)
     CODE_GENDER: str
     FLAG_PHONE: int = Field(..., ge=0, le=1)
     AMT_GOODS_PRICE: float = Field(..., gt=0)
