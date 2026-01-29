@@ -8,7 +8,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, Security, Request
 from fastapi.security import APIKeyHeader
 from utils.data_validation import CreditInput
-from utils.logging_middleware import LoggingMiddleware
+#from utils.logging_middleware import LoggingMiddleware
 
 
 #------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-app.add_middleware(LoggingMiddleware)
+#app.add_middleware(LoggingMiddleware)
 
 # on exécute une prédiction fictive au demarage ( pour chargé modèles..)
 @app.on_event("startup")
@@ -89,7 +89,7 @@ def root():
     }
 
 @app.post("/predict")
-def predict(input_data: CreditInput, request: Request, _: str = Security(_verify_api_key)):
+def predict(input_data: CreditInput, _: str = Security(_verify_api_key)):
     try:
         # Convertir l'input en DataFrame
         df = pd.DataFrame([input_data.model_dump()])
@@ -105,10 +105,10 @@ def predict(input_data: CreditInput, request: Request, _: str = Security(_verify
         pred = int(proba > 0.5)
 
         # Ajout pour le logging (lu par le middleware)
-        request.state.model_output = {
-            "prediction": pred,
-            "probability": proba
-        }
+        #request.state.model_output = {
+            #"prediction": pred,
+            #"probability": proba
+        #}
 
         return {
             "prediction": pred,
