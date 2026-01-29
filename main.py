@@ -25,11 +25,14 @@ def _verify_api_key(x_api_key: str = Security(api_key_header)):
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
 
-
+model = None
 try:
     model = joblib.load(MODEL_PATH)
+    print("Modèle chargé avec succès.")
 except Exception as e:
-    raise RuntimeError(f"Erreur lors du chargement du modèle: {e}")
+    # NE PAS lever une exception fatale au démarrage
+    print(f"Attention: impossible de charger le modèle au démarrage: {e}")
+    model = None
 
 try:
     with open(METADATA_PATH, "r") as f:
@@ -52,6 +55,8 @@ app = FastAPI(
 # on exécute une prédiction fictive au demarage ( pour chargé modèles..)
 @app.on_event("startup")
 def warmup():
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
     try:
         dummy = {
             "AMT_REQ_CREDIT_BUREAU_YEAR": 1.0,
@@ -90,6 +95,8 @@ def root():
 
 @app.post("/predict")
 def predict(input_data: CreditInput, _: str = Security(_verify_api_key)):
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
     try:
         # Convertir l'input en DataFrame
         df = pd.DataFrame([input_data.model_dump()])
