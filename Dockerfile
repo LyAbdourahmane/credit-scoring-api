@@ -3,13 +3,14 @@ FROM python:3.12-slim
 # Installer libgomp pour LightGBM
 RUN apt-get update && apt-get install -y libgomp1
 
-ENV PYTHONUNBUFFERED=1
+# Installer uv
+RUN pip install uv
+
 WORKDIR /app
 
-# Installer l'outil 'uv' puis installer les dépendances du pyproject
 COPY pyproject.toml uv.lock ./
-RUN pip install --no-cache-dir uv \
- && uv sync --frozen --no-dev
+
+RUN uv sync --frozen --no-dev
 
 COPY . .
 
