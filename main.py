@@ -26,13 +26,19 @@ def _verify_api_key(x_api_key: str = Security(api_key_header)):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 model = None
-try:
-    model = joblib.load(MODEL_PATH)
-    print("Modèle chargé avec succès.")
-except Exception as e:
-    # NE PAS lever une exception fatale au démarrage
-    print(f"Attention: impossible de charger le modèle au démarrage: {e}")
-    model = None
+
+def load_model():
+    global model
+    if model is not None:
+        return model
+    try:
+        model = joblib.load(MODEL_PATH)
+        print("Modèle chargé avec succès.")
+        return model
+    except Exception as e:
+        print(f"Attention: impossible de charger le modèle: {e}")
+        model = None
+        return None
 
 try:
     with open(METADATA_PATH, "r") as f:
@@ -55,8 +61,12 @@ app = FastAPI(
 # on exécute une prédiction fictive au demarage ( pour chargé modèles..)
 @app.on_event("startup")
 def warmup():
-    if model is None:
-        raise HTTPException(status_code=503, detail="Model not loaded")
+    # tenter de charger mais NE PAS lever d'exception qui ferait échouer le démarrage
+    m = load_model()
+    if m is None:
+        print("Warm-up : modèle non chargé, l'API démarre sans modèle.")
+        return
+    # si chargé, exécuter warmup léger (optionnel)
     try:
         dummy = {
             "AMT_REQ_CREDIT_BUREAU_YEAR": 1.0,
@@ -71,17 +81,12 @@ def warmup():
             "FLAG_OWN_CAR": "Y",
             "NAME_FAMILY_STATUS": "Married"
         }
-
         df = pd.DataFrame([dummy])
         df["CREDIT_TERM"] = df["AMT_ANNUITY"] / df["AMT_CREDIT"]
-
-        model.predict_proba(df)
-
-        print("Warm-up terminé : modèle chargé en mémoire.")
-
+        m.predict_proba(df)
+        print("Warm-up terminé : modèle prêt.")
     except Exception as e:
         print(f"Warm-up échoué : {e}")
-
 
 
 @app.get("/")
@@ -95,8 +100,13 @@ def root():
 
 @app.post("/predict")
 def predict(input_data: CreditInput, _: str = Security(_verify_api_key)):
+    global model
     if model is None:
-        raise HTTPException(status_code=503, detail="Model not loaded")
+        # Essayer de recharger au moment de la première requête
+        model = load_model()
+        if model is None:
+            # réponse claire, sans crash
+            raise HTTPException(status_code=503, detail="Model not loaded")
     try:
         # Convertir l'input en DataFrame
         df = pd.DataFrame([input_data.model_dump()])
