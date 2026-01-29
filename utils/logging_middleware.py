@@ -7,8 +7,9 @@ from uuid import uuid4
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
-# Dossier de logs
-LOG_DIR = Path("logs")
+# Dossier de logs compatible Render (écriture autorisée uniquement dans /tmp)
+# LOG_DIR = Path("logs") car sur render gratuit n'autorise pas
+LOG_DIR = Path("/tmp/logs")
 LOG_DIR.mkdir(exist_ok=True)
 LOG_FILE = LOG_DIR / "api_logs.jsonl"
 
