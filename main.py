@@ -5,9 +5,11 @@ from dotenv import load_dotenv
 
 import joblib
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Security
+from fastapi import FastAPI, HTTPException, Security, Request
 from fastapi.security import APIKeyHeader
 from utils.data_validation import CreditInput
+from utils.logging_middleware import LoggingMiddleware
+
 
 #------------------------------------------------------------------------------
 # ---------- Chargement du modèle et des métadonnées (une seule fois) ----------
@@ -45,6 +47,38 @@ app = FastAPI(
     version="1.0.0"
 )
 
+app.add_middleware(LoggingMiddleware)
+
+# on exécute une prédiction fictive au demarage ( pour chargé modèles..)
+@app.on_event("startup")
+def warmup():
+    try:
+        dummy = {
+            "AMT_REQ_CREDIT_BUREAU_YEAR": 1.0,
+            "HOUR_APPR_PROCESS_START": 10,
+            "AMT_ANNUITY": 20000.0,
+            "AMT_CREDIT": 500000.0,
+            "EXT_SOURCE_3": 0.5,
+            "EXT_SOURCE_2": 0.5,
+            "CODE_GENDER": "M",
+            "FLAG_PHONE": 1,
+            "AMT_GOODS_PRICE": 300000.0,
+            "FLAG_OWN_CAR": "Y",
+            "NAME_FAMILY_STATUS": "Married"
+        }
+
+        df = pd.DataFrame([dummy])
+        df["CREDIT_TERM"] = df["AMT_ANNUITY"] / df["AMT_CREDIT"]
+
+        model.predict_proba(df)
+
+        print("Warm-up terminé : modèle chargé en mémoire.")
+
+    except Exception as e:
+        print(f"Warm-up échoué : {e}")
+
+
+
 @app.get("/")
 def root():
     return {
@@ -55,8 +89,7 @@ def root():
     }
 
 @app.post("/predict")
-@app.post("/predict")
-def predict(input_data: CreditInput, _: str = Security(_verify_api_key)):
+def predict(input_data: CreditInput, request: Request, _: str = Security(_verify_api_key)):
     try:
         # Convertir l'input en DataFrame
         df = pd.DataFrame([input_data.model_dump()])
@@ -64,9 +97,18 @@ def predict(input_data: CreditInput, _: str = Security(_verify_api_key)):
         # Feature engineering directement sur le DataFrame
         df["CREDIT_TERM"] = df["AMT_ANNUITY"] / df["AMT_CREDIT"]
 
+        # on gère si on nous avons none par des valeurs par défauts
+        df = df.fillna({ "AMT_REQ_CREDIT_BUREAU_YEAR": 0, "EXT_SOURCE_3": 0.5, "EXT_SOURCE_2": 0.5 })
+
         # Prédiction
         proba = float(model.predict_proba(df)[0, 1])
         pred = int(proba > 0.5)
+
+        # Ajout pour le logging (lu par le middleware)
+        request.state.model_output = {
+            "prediction": pred,
+            "probability": proba
+        }
 
         return {
             "prediction": pred,
@@ -74,4 +116,5 @@ def predict(input_data: CreditInput, _: str = Security(_verify_api_key)):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=400,detail=f"Erreur lors de la prédiction : {e}")
+        raise HTTPException(status_code=400, detail=f"Erreur lors de la prédiction : {e}")
+
