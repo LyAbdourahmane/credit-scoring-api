@@ -1,35 +1,195 @@
-“Plus de 50% des features présentent une dérive statistiquement significative.
-Les dérives les plus importantes concernent les variables EXT_SOURCE_2, EXT_SOURCE_3, AMT_REQ_CREDIT_BUREAU_YEAR et HOUR_APPR_PROCESS_START.
-Ces variables sont critiques pour le modèle de scoring, ce qui suggère que les données de production ne sont pas représentatives du dataset d’entraînement.
-Dans un contexte réel, cela pourrait entraîner une dégradation progressive des performances du modèle.”
+# **API de Scoring Crédit (MLOps – Déploiement & Monitoring)**
 
-“Le système de monitoring détecte correctement la dérive des données.
-Les dérives observées sont cohérentes avec le faible volume de données de production et la nature simulée des requêtes.
-Dans un environnement réel, ces dérives nécessiteraient une surveillance continue et potentiellement un réentraînement du modèle.”
+## **Contexte du projet**
 
-“L’analyse opérationnelle réalisée avec Evidently sur les métriques status_code et latency_ms ne montre aucune dérive.
-Les distributions observées en production sont cohérentes avec la référence, ce qui indique que l’API est stable, que les temps de réponse sont maîtrisés et qu’aucune augmentation anormale du taux d’erreur n’a été détectée.”
+Ce projet s’inscrit dans la continuité du travail réalisé dans *Initiez-vous au MLOps (partie 1/2)*.  
+Après avoir entraîné, versionné et évalué un modèle de scoring crédit avec MLflow, l’objectif est désormais de :
 
-Et tu peux ajouter :
+- **déployer le modèle en production via une API**  
+- **conteneriser l’application avec Docker**  
+- **mettre en place un pipeline CI/CD**  
+- **monitorer les performances du modèle et détecter la dérive des données**  
 
-“Cette stabilité opérationnelle est un prérequis essentiel avant d’entamer la phase d’optimisation du modèle et de l’infrastructure.”
+Ce travail simule la mission confiée par Chloé Dubois, Lead Data Scientist chez *Prêt à Dépenser*, pour permettre au département *Crédit Express* d’utiliser le modèle en quasi temps réel.
 
-Le pic à 1528 ms est anormal → probablement un cold start ou un premier chargement du modèle.
-Ton API est performante, mais souffre d’un goulot d’étranglement au démarrage.
+---
 
-L’analyse des logs de production montre que le modèle présente un temps d’inférence moyen de 15 à 25 ms, ce qui est excellent pour un modèle de scoring. Un pic de latence à 1528 ms a été observé lors de la première requête, indiquant un cold start lié au chargement initial du modèle.
+# **Objectifs du projet**
 
-Le taux d’erreur est faible, avec deux erreurs 422 dues à des valeurs manquantes dans les données d’entrée. Aucun drift opérationnel n’a été détecté sur la latence ou les codes HTTP.
+### ✔ Développer une API de scoring (FastAPI)  
+L’API reçoit les données d’un client et retourne :
 
-Goulots d’étranglement identifiés
-Cold start important lors de la première prédiction.
+- une probabilité de défaut  
+- une prédiction binaire (0 = accepté, 1 = refusé)
 
-Validation Pydantic trop stricte, entraînant des erreurs 422.
+### ✔ Conteneuriser l’API avec Docker  
+L’image Docker doit être :
 
-Optimisations réalisées
+- légère  
+- reproductible  
+- compatible avec un déploiement cloud (Render)
 
-Ajout d’un warm-up au démarrage de l’API
+### ✔ Déployer automatiquement via CI/CD  
+Pipeline GitHub Actions permettant :
 
-Assouplissement de la validation Pydantic
+- exécution des tests unitaires  
+- build de l’image Docker  
+- déploiement automatique sur Render
 
-Augmentation du nombre de workers Uvicorn
+### ✔ Mettre en place un monitoring  
+Collecte et analyse :
+
+- des inputs / outputs du modèle  
+- des latences  
+- des distributions des features  
+- de la dérive des données (Evidently AI)
+
+### ✔ Documenter l’ensemble du projet  
+README complet + screenshots + instructions de lancement.
+
+---
+
+# **1. API FastAPI**
+
+### Endpoint principal : `/predict`
+
+**Méthode :** `POST`  
+**Sécurité :** API Key (`x-api-key`)  
+**Entrée :** JSON validé par Pydantic  
+**Sortie :**
+
+```json
+{
+  "prediction": 0,
+  "probability": 0.23
+}
+```
+
+### 📍 Endpoint de test : `/`
+
+Retourne des informations sur le modèle et la version.
+
+### 📍 Chargement du modèle
+
+Le modèle est chargé **une seule fois au démarrage** :
+
+- évite les lenteurs  
+- améliore la scalabilité  
+- réduit la consommation mémoire  
+
+---
+
+# **3. Déploiement Render**
+
+L’API est déployée automatiquement via Render :
+
+- Build Docker automatique  
+- Déploiement continu  
+- URL publique :  
+  **https://credit-scoring-api-1-op28.onrender.com**
+
+### Variables d’environnement
+
+| Nom | Description |
+|-----|-------------|
+| `API_KEY` | Clé d’accès à l’API |
+
+---
+
+# **4. Pipeline CI/CD (GitHub Actions)**
+
+Pipeline automatisé :
+
+1. **Tests unitaires**  
+2. **Build Docker**  
+3. **Push image**  
+4. **Déploiement Render**
+
+### `.github/workflows/cicd.yml`
+
+- Séparation des étapes : test → build → deploy  
+- Gestion des secrets GitHub  
+- Déclenchement sur `push main ou master`
+
+---
+
+# **5. Tests unitaires**
+
+Tests réalisés avec `pytest` :
+
+- validation des schémas Pydantic  
+- test du endpoint `/predict`  
+- test du chargement du modèle  
+- test des erreurs (API key, données invalides)
+
+Exécution :
+
+```bash
+pytest -v
+```
+
+---
+
+# **6. Monitoring & Data Drift**
+
+### Données collectées
+
+- Inputs du modèle  
+- Outputs (probabilité + prédiction)  
+- Latence  
+- Timestamp  
+- Statut HTTP  
+
+### Analyse Evidently
+
+Un notebook dédié :
+
+```
+notebook/monitoring.ipynb
+```
+
+Permet :
+
+- comparaison des distributions  
+- détection de dérive  
+- analyse des performances  
+- visualisation des métriques  
+
+### Stockage des logs
+
+- local : fichiers JSONL
+
+---
+
+# **7. Optimisation post-déploiement**
+
+Tests réalisés :
+
+- mesure du temps d’inférence  
+- profiling CPU  
+- optimisation du pipeline de features  
+- réduction du poids du modèle  
+- amélioration du Dockerfile  
+
+---
+
+# **9. Documentation Swagger**
+
+Une fois l’API lancée :
+
+- Swagger UI :  
+  **http://localhost:8000/docs**
+
+- ReDoc :  
+  **http://localhost:8000/redoc**
+
+---
+
+# **10. Sécurité**
+
+- API Key obligatoire  
+- Validation stricte des entrées (Pydantic)  
+- Aucun chargement du modèle à chaque requête  
+- Secrets gérés via GitHub Secrets + Render Environment Variables  
+
+---
